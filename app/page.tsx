@@ -15,6 +15,7 @@ export default function Home() {
   const [collapsedLines, setCollapsedLines] = useState<Record<number, boolean>>({});
   const [collapsibleRanges, setCollapsibleRanges] = useState<{start: number, end: number, type: string, count?: number}[]>([]);
   const [hiddenLines, setHiddenLines] = useState<Record<number, boolean>>({});
+  const [bracketColors, setBracketColors] = useState<Record<number, string>>({});
 
   useEffect(() => {
     parseJson();
@@ -129,235 +130,184 @@ export default function Home() {
     
     console.log('开始查找可折叠范围，总行数:', lines.length);
     
-    // 第一步: 首先执行括号匹配，记录每个开始括号匹配的结束括号
-    // 使用栈来进行括号匹配
-    const bracketMatches: Record<number, number> = {}; // 开始行号到结束行号的映射
-    const bracketStack: {lineIndex: number, char: string, lineContent: string}[] = [];
+    // 完全重新实现括号匹配
+    // 记录每个开括号的位置和与之匹配的闭括号
+    const bracketPairs: {openLine: number, openChar: string, closeLine: number}[] = [];
+    const bracketStack: {line: number, position: number, char: string}[] = [];
     
-    // 预处理，先确定每行的实际内容
-    const lineContents: string[] = lines.map(line => line.trim());
+    // 标记字符串开始和结束的位置，避免处理字符串中的括号
+    let inString = false;
+    let escapeNext = false;
     
-    // 记录每行是否包含各种括号
-    for (let i = 0; i < lines.length; i++) {
-      const line = lineContents[i];
-      if (!line) continue;
+    // 逐行逐字符分析
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
       
-      // 检查是否包含开始括号 { 或 [
-      let containsOpeningBracket = false;
-      let openingBracketChar = '';
-      if (line === '{' || line.endsWith('{')) {
-        containsOpeningBracket = true;
-        openingBracketChar = '{';
-      } else if (line === '[' || line.endsWith('[')) {
-        containsOpeningBracket = true;
-        openingBracketChar = '[';
-      }
-      
-      // 处理开始括号
-      if (containsOpeningBracket) {
-        // 入栈
-        bracketStack.push({
-          lineIndex: i,
-          char: openingBracketChar,
-          lineContent: line
-        });
-      }
-      
-      // 检查是否包含结束括号 } 或 ]
-      let containsClosingBracket = false;
-      let closingBracketChar = '';
-      if (line === '}' || line === '},' || line.startsWith('}')) {
-        containsClosingBracket = true;
-        closingBracketChar = '}';
-      } else if (line === ']' || line === '],' || line.startsWith(']')) {
-        containsClosingBracket = true;
-        closingBracketChar = ']';
-      }
-      
-      // 处理结束括号
-      if (containsClosingBracket && bracketStack.length > 0) {
-        const matchingOpening = bracketStack.pop()!;
-        const expectedClosing = matchingOpening.char === '{' ? '}' : ']';
+      for (let charIndex = 0; charIndex < line.length; charIndex++) {
+        const char = line[charIndex];
         
-        // 确保括号类型匹配
-        if (closingBracketChar === expectedClosing) {
-          // 记录匹配关系
-          bracketMatches[matchingOpening.lineIndex] = i;
-        } else {
-          console.warn(`括号不匹配: 第${matchingOpening.lineIndex+1}行的${matchingOpening.char}与第${i+1}行的${closingBracketChar}`);
+        // 处理转义字符
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+        
+        // 处理转义标记
+        if (char === '\\') {
+          escapeNext = true;
+          continue;
+        }
+        
+        // 处理字符串边界
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        
+        // 只处理不在字符串内的括号
+        if (!inString) {
+          // 处理开括号
+          if (char === '{' || char === '[') {
+            bracketStack.push({
+              line: lineIndex,
+              position: charIndex,
+              char: char
+            });
+          }
+          // 处理闭括号
+          else if (char === '}' || char === ']') {
+            if (bracketStack.length > 0) {
+              const lastOpenBracket = bracketStack.pop()!;
+              const expectedClosing = lastOpenBracket.char === '{' ? '}' : ']';
+              
+              // 检查括号是否匹配
+              if (char === expectedClosing) {
+                // 记录这对匹配的括号
+                bracketPairs.push({
+                  openLine: lastOpenBracket.line,
+                  openChar: lastOpenBracket.char,
+                  closeLine: lineIndex
+                });
+              } else {
+                console.warn(`括号不匹配: 第${lastOpenBracket.line+1}行的${lastOpenBracket.char}与第${lineIndex+1}行的${char}`);
+                // 不匹配时尝试在堆栈中查找匹配的括号
+                let matchFound = false;
+                for (let i = bracketStack.length - 1; i >= 0; i--) {
+                  const openBracket = bracketStack[i];
+                  const expected = openBracket.char === '{' ? '}' : ']';
+                  if (char === expected) {
+                    // 找到匹配，记录并移除
+                    bracketPairs.push({
+                      openLine: openBracket.line,
+                      openChar: openBracket.char,
+                      closeLine: lineIndex
+                    });
+                    bracketStack.splice(i, 1);
+                    matchFound = true;
+                    break;
+                  }
+                }
+                
+                // 如果没找到匹配，则将错误的开括号重新放回堆栈
+                if (!matchFound) {
+                  bracketStack.push(lastOpenBracket);
+                }
+              }
+            } else {
+              console.warn(`在第${lineIndex+1}行发现未匹配的闭括号: ${char}`);
+            }
+          }
         }
       }
     }
     
-    console.log('括号匹配结果:', bracketMatches);
+    console.log('找到的括号对:', bracketPairs);
     
-    // 第二步: 根据括号匹配结果，标记所有的可折叠范围
+    // 将bracketPairs转换为可折叠范围和括号匹配
+    const bracketMatches: Record<number, number> = {}; // 开始行号到结束行号的映射
+    const bracketTypes: Record<number, string> = {}; // 记录每行括号的类型
+    
+    bracketPairs.forEach(pair => {
+      // 记录匹配关系
+      bracketMatches[pair.openLine] = pair.closeLine;
+      // 记录括号类型
+      bracketTypes[pair.openLine] = pair.openChar;
+    });
+    
+    console.log('括号匹配结果:', bracketMatches);
+    console.log('括号类型:', bracketTypes);
+    
+    // 括号颜色列表
+    const colors = [
+      '#e6194B', '#3cb44b', '#ffe119', '#4363d8', 
+      '#f58231', '#911eb4', '#42d4f4', '#f032e6',
+      '#bfef45', '#fabed4', '#469990', '#dcbeff',
+      '#9A6324', '#fffac8', '#800000', '#aaffc3',
+      '#808000', '#ffd8b1', '#000075', '#a9a9a9'
+    ];
+    
+    // 给每对括号分配颜色
+    const newBracketColors: Record<number, string> = {};
+    
+    // 按照嵌套深度为括号对分配颜色
+    // 首先按开括号行号排序，这样外层括号会先于内层括号处理
+    const sortedPairs = [...bracketPairs].sort((a, b) => a.openLine - b.openLine);
+    
+    sortedPairs.forEach((pair, index) => {
+      const colorIndex = index % colors.length;
+      newBracketColors[pair.openLine] = colors[colorIndex];
+      newBracketColors[pair.closeLine] = colors[colorIndex];
+    });
+    
+    console.log('括号颜色:', newBracketColors);
+    setBracketColors(newBracketColors);
+    
+    // 根据括号匹配结果，标记所有的可折叠范围
     for (let i = 0; i < lines.length; i++) {
-      const line = lineContents[i];
-      if (!line) continue;
-      
-      // 如果这一行是开始括号，且有对应的结束括号
       if (i in bracketMatches) {
         const endLine = bracketMatches[i];
         // 确保范围至少包含一行
         if (endLine > i) {
           // 确定类型 (object 或 array)
-          let type = 'object';
-          if (line === '[' || line.endsWith('[')) {
-            type = 'array';
-          }
+          let type = bracketTypes[i] === '{' ? 'object' : 'array';
           
-          // 计算范围内的项数 - 简化版本
+          // 计算范围内的项数
           let itemCount = 0;
           
-          // 创建一个包含此范围所有行的字符串
-          const rangeText = lines.slice(i, endLine + 1).join('\n');
-          
-          try {
-            // 尝试解析这个范围的JSON片段
-            // 先提取要解析的实际JSON
-            let jsonToCount = rangeText;
-            // 如果行以键名开始，我们需要添加包装使它成为有效JSON
-            if (line.includes('"') && line.includes(':')) {
-              // 找到冒号位置，只取冒号后面的部分
-              const colonIndex = line.indexOf(':');
-              if (colonIndex !== -1) {
-                const afterColon = line.substring(colonIndex + 1).trim();
-                // 如果冒号后是{或[，则只解析该部分
-                if (afterColon === '{' || afterColon === '[') {
-                  jsonToCount = lines.slice(i, endLine + 1).join('\n');
-                }
+          // 简化的计数逻辑
+          if (type === 'object') {
+            // 对象内的键数量
+            let keysCount = 0;
+            for (let j = i + 1; j < endLine; j++) {
+              const line = lines[j].trim();
+              if (line.includes('"') && line.includes(':')) {
+                keysCount++;
               }
             }
-            
-            // 格式检查和调整
-            if (type === 'object') {
-              // 确保要解析的文本是一个有效的JSON对象
-              if (!jsonToCount.startsWith('{')) {
-                jsonToCount = '{' + jsonToCount.substring(jsonToCount.indexOf('{') + 1);
+            itemCount = keysCount;
+          } else {
+            // 数组内的元素数量
+            let elementsCount = 0;
+            let level = 0;
+            for (let j = i + 1; j < endLine; j++) {
+              const line = lines[j].trim();
+              if (level === 0 && line !== '' && !line.startsWith(']')) {
+                if (!line.endsWith(',')) {
+                  // 如果这是最后一个元素
+                  elementsCount++;
+                } else if (line.endsWith(',')) {
+                  elementsCount++;
+                }
               }
               
-              if (jsonToCount.trim() === '{' || jsonToCount.trim() === '{}') {
-                itemCount = 0;
-              } else {
-                // 更健壮的计数方法 - 对象属性数量
-                // 计算顶层键值对数量
-                let keysCount = 0;
-                let bracketDepth = 0;
-                let inString = false;
-                let escape = false;
-                
-                // 从第一行之后开始，到最后一行之前结束
-                for (let j = i + 1; j < endLine; j++) {
-                  const currentLine = lineContents[j];
-                  if (!currentLine) continue;
-                  
-                  // 只计算顶层的键
-                  if (bracketDepth === 0 && currentLine.includes('"') && currentLine.includes(':')) {
-                    keysCount++;
-                  }
-                  
-                  // 跟踪大括号深度
-                  for (let k = 0; k < currentLine.length; k++) {
-                    const char = currentLine[k];
-                    
-                    if (escape) {
-                      escape = false;
-                      continue;
-                    }
-                    
-                    if (char === '\\') {
-                      escape = true;
-                      continue;
-                    }
-                    
-                    if (char === '"' && !escape) {
-                      inString = !inString;
-                      continue;
-                    }
-                    
-                    if (!inString) {
-                      if (char === '{' || char === '[') {
-                        bracketDepth++;
-                      } else if (char === '}' || char === ']') {
-                        bracketDepth--;
-                      }
-                    }
-                  }
-                }
-                
-                itemCount = keysCount;
-              }
-            } else if (type === 'array') {
-              // 确保要解析的文本是一个有效的JSON数组
-              if (!jsonToCount.startsWith('[')) {
-                jsonToCount = '[' + jsonToCount.substring(jsonToCount.indexOf('[') + 1);
-              }
-              
-              if (jsonToCount.trim() === '[' || jsonToCount.trim() === '[]') {
-                itemCount = 0;
-              } else {
-                // 计算数组元素数量
-                // 对于数组，我们计算逗号+1来得到元素数
-                let elementsCount = 0;
-                let bracketDepth = 0;
-                let inString = false;
-                let escape = false;
-                
-                // 遍历每行
-                for (let j = i + 1; j < endLine; j++) {
-                  const currentLine = lineContents[j];
-                  if (!currentLine) continue;
-                  
-                  // 如果是顶层的元素行（不是开始或结束括号）
-                  if (bracketDepth === 0 && 
-                      !currentLine.startsWith('[') && !currentLine.startsWith(']') &&
-                      !currentLine.startsWith('{') && !currentLine.startsWith('}')) {
-                    elementsCount++;
-                  }
-                  
-                  // 如果是新的对象或数组开始且在顶层
-                  if (bracketDepth === 0 && 
-                      (currentLine === '{' || currentLine === '[' || 
-                       currentLine.startsWith('{') || currentLine.startsWith('['))) {
-                    elementsCount++;
-                  }
-                  
-                  // 跟踪括号深度
-                  for (let k = 0; k < currentLine.length; k++) {
-                    const char = currentLine[k];
-                    
-                    if (escape) {
-                      escape = false;
-                      continue;
-                    }
-                    
-                    if (char === '\\') {
-                      escape = true;
-                      continue;
-                    }
-                    
-                    if (char === '"' && !escape) {
-                      inString = !inString;
-                      continue;
-                    }
-                    
-                    if (!inString) {
-                      if (char === '{' || char === '[') {
-                        bracketDepth++;
-                      } else if (char === '}' || char === ']') {
-                        bracketDepth--;
-                      }
-                    }
-                  }
-                }
-                
-                itemCount = elementsCount;
+              // 跟踪嵌套层级
+              for (let k = 0; k < line.length; k++) {
+                const char = line[k];
+                if (char === '{' || char === '[') level++;
+                else if (char === '}' || char === ']') level--;
               }
             }
-          } catch (err) {
-            console.warn('计算元素数量时出错:', err);
-            itemCount = Math.max(0, endLine - i - 1); // 回退方案：简单地计算行数减2作为元素数
+            itemCount = elementsCount;
           }
           
           // 添加到可折叠范围列表
@@ -387,6 +337,7 @@ export default function Home() {
       setCollapsibleRanges([]);
       setCollapsedLines({});
       setHiddenLines({});
+      setBracketColors({});
       return;
     }
 
@@ -419,6 +370,7 @@ export default function Home() {
       setCollapsibleRanges([]);
       setCollapsedLines({});
       setHiddenLines({});
+      setBracketColors({});
     }
   };
 
@@ -490,12 +442,59 @@ export default function Home() {
               }
             }
             
-            // 括号 {} []
+            // 获取这一行的括号颜色
+            const bracketColor = bracketColors[index] || '#f8f8f2';
+            
+            // 单独一行是括号 {} []
             if (trimmedLine === '{' || trimmedLine === '}' || 
                 trimmedLine === '[' || trimmedLine === ']' ||
                 trimmedLine === '{,' || trimmedLine === '},' ||
                 trimmedLine === '[,' || trimmedLine === '],') {
-              return <span><span style={{ color: '#f8f8f2' }}>{indentation}</span><span style={{ color: '#f8f8f2' }}>{trimmedLine}</span></span>;
+              return <span><span style={{ color: '#f8f8f2' }}>{indentation}</span><span style={{ color: bracketColor, fontWeight: 'bold' }}>{trimmedLine}</span></span>;
+            }
+            
+            // 处理包含括号的行，比如 "capabilities": [
+            // 注意匹配可能嵌入在行内的括号
+            if (trimmedLine.includes('{') || trimmedLine.includes('}') || 
+                trimmedLine.includes('[') || trimmedLine.includes(']')) {
+              
+              // 检查是行内最后的字符是否是括号
+              const lastChar = trimmedLine[trimmedLine.length - 1];
+              const hasEndingBracket = lastChar === '{' || lastChar === '[';
+              
+              // 检查是行内最开始的字符是否是括号
+              const firstChar = trimmedLine[0];
+              const hasStartingBracket = firstChar === '}' || firstChar === ']';
+              
+              if (hasEndingBracket || hasStartingBracket) {
+                // 如果是键值对后面带括号，如 "capabilities": [
+                if (trimmedLine.includes(':') && hasEndingBracket) {
+                  const colonIndex = trimmedLine.indexOf(':');
+                  const keyPart = trimmedLine.substring(0, colonIndex + 1);
+                  const remainingPart = trimmedLine.substring(colonIndex + 1).trim();
+                  
+                  return (
+                    <span>
+                      <span style={{ color: '#f8f8f2' }}>{indentation}</span>
+                      <span style={{ color: '#f92672' }}>{keyPart.substring(0, keyPart.length - 1)}</span>
+                      <span style={{ color: '#f8f8f2' }}>:</span>
+                      <span style={{ color: '#f8f8f2' }}>{remainingPart.substring(0, remainingPart.length - 1)}</span>
+                      <span style={{ color: bracketColor, fontWeight: 'bold' }}>{lastChar}</span>
+                    </span>
+                  );
+                }
+                
+                // 如果是以括号开头并带逗号，如 },
+                else if (hasStartingBracket && trimmedLine.endsWith(',')) {
+                  return (
+                    <span>
+                      <span style={{ color: '#f8f8f2' }}>{indentation}</span>
+                      <span style={{ color: bracketColor, fontWeight: 'bold' }}>{firstChar}</span>
+                      <span style={{ color: '#f8f8f2' }}>{trimmedLine.substring(1)}</span>
+                    </span>
+                  );
+                }
+              }
             }
             
             // 匹配键名
