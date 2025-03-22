@@ -900,6 +900,46 @@ export default function Home() {
     return elementsCount;
   }
 
+  // JSON转义处理函数
+  const handleEscapeJson = () => {
+    if (!inputJson) return;
+    
+    try {
+      // 对输入的内容进行JSON转义
+      const escaped = inputJson.replace(/[\\"']/g, '\\$&')
+                             .replace(/\u0000/g, '\\u0000')
+                             .replace(/\u001F/g, '\\u001F')
+                             .replace(/\n/g, '\\n')
+                             .replace(/\r/g, '\\r')
+                             .replace(/\t/g, '\\t');
+      
+      setInputJson(escaped);
+    } catch (err) {
+      console.error('JSON转义失败:', err);
+    }
+  };
+
+  // JSON反转义处理函数
+  const handleUnescapeJson = () => {
+    if (!inputJson) return;
+    
+    try {
+      // 对已转义的JSON进行反转义
+      const unescaped = inputJson.replace(/\\"/g, '"')
+                               .replace(/\\\\/g, '\\')
+                               .replace(/\\n/g, '\n')
+                               .replace(/\\r/g, '\r')
+                               .replace(/\\t/g, '\t')
+                               .replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => {
+                                 return String.fromCharCode(parseInt(code, 16));
+                               });
+      
+      setInputJson(unescaped);
+    } catch (err) {
+      console.error('JSON反转义失败:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900 overscroll-contain">
       <div className="max-w-7xl mx-auto">
@@ -918,6 +958,20 @@ export default function Home() {
             <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h2 className="text-sm font-medium text-gray-900 dark:text-white">输入JSON</h2>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleEscapeJson}
+                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded"
+                  title="将JSON文本中的特殊字符转义"
+                >
+                  转义
+                </button>
+                <button
+                  onClick={handleUnescapeJson}
+                  className="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded"
+                  title="将已转义的JSON文本恢复为原始文本"
+                >
+                  反转义
+                </button>
                 <button
                   onClick={handleExampleLoad}
                   className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
