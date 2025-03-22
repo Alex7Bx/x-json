@@ -16,6 +16,7 @@ export default function Home() {
   const [collapsibleRanges, setCollapsibleRanges] = useState<{start: number, end: number, type: string, count?: number}[]>([]);
   const [hiddenLines, setHiddenLines] = useState<Record<number, boolean>>({});
   const [bracketColors, setBracketColors] = useState<Record<number, string>>({});
+  const [isButtonActive, setIsButtonActive] = useState(false);
 
   useEffect(() => {
     parseJson();
@@ -420,6 +421,69 @@ export default function Home() {
     }
   };
 
+  // 全部折叠函数
+  const handleCollapseAll = () => {
+    if (!isValid || !outputJson) return;
+    
+    console.log("执行全部折叠操作");
+    
+    const newCollapsedLines: Record<number, boolean> = {};
+    const newHiddenLines: Record<number, boolean> = {};
+    
+    // 标记所有可折叠范围为折叠状态
+    collapsibleRanges.forEach(range => {
+      newCollapsedLines[range.start] = true;
+    });
+    
+    // 确定哪些行应该被隐藏（仅在顶层范围内的行）
+    // 找出顶层范围（不包含在其他范围内的范围）
+    const topLevelRanges = collapsibleRanges.filter(range => {
+      // 检查这个范围是否是顶层范围（不在其他范围内）
+      return !collapsibleRanges.some(otherRange => 
+        otherRange.start < range.start && otherRange.end > range.end
+      );
+    });
+    
+    // 只隐藏顶层范围内的行
+    topLevelRanges.forEach(range => {
+      for (let i = range.start + 1; i < range.end; i++) {
+        newHiddenLines[i] = true;
+      }
+    });
+    
+    setCollapsedLines(newCollapsedLines);
+    setHiddenLines(newHiddenLines);
+    
+    console.log("全部折叠完成，折叠了", Object.keys(newCollapsedLines).length, "个范围");
+  };
+
+  // 全部展开函数
+  const handleExpandAll = () => {
+    console.log("执行全部展开操作");
+    setCollapsedLines({});
+    setHiddenLines({});
+    console.log("全部展开完成");
+  };
+  
+  // 切换全部折叠/展开状态
+  const toggleCollapseAll = () => {
+    // 检查是否有折叠的节点，判断当前状态
+    const hasCollapsedNodes = Object.keys(collapsedLines).length > 0;
+    
+    if (hasCollapsedNodes) {
+      // 当前有折叠节点，执行全部展开
+      handleExpandAll();
+    } else {
+      // 当前全部展开，执行全部折叠
+      handleCollapseAll();
+    }
+  };
+  
+  // 切换自动换行
+  const toggleSoftWrap = () => {
+    setSoftWrap(!softWrap);
+  };
+
   // 切换折叠状态
   const toggleCollapse = (startLine: number, endLine: number, type: string) => {
     console.log(`切换折叠状态: 行 ${startLine+1}-${endLine+1}, 类型: ${type}`);
@@ -738,50 +802,6 @@ export default function Home() {
     console.log("示例JSON加载完成");
   };
 
-  // 全部折叠函数
-  const handleCollapseAll = () => {
-    if (!isValid || !outputJson) return;
-    
-    console.log("执行全部折叠操作");
-    
-    const newCollapsedLines: Record<number, boolean> = {};
-    const newHiddenLines: Record<number, boolean> = {};
-    
-    // 标记所有可折叠范围为折叠状态
-    collapsibleRanges.forEach(range => {
-      newCollapsedLines[range.start] = true;
-    });
-    
-    // 确定哪些行应该被隐藏（仅在顶层范围内的行）
-    // 找出顶层范围（不包含在其他范围内的范围）
-    const topLevelRanges = collapsibleRanges.filter(range => {
-      // 检查这个范围是否是顶层范围（不在其他范围内）
-      return !collapsibleRanges.some(otherRange => 
-        otherRange.start < range.start && otherRange.end > range.end
-      );
-    });
-    
-    // 只隐藏顶层范围内的行
-    topLevelRanges.forEach(range => {
-      for (let i = range.start + 1; i < range.end; i++) {
-        newHiddenLines[i] = true;
-      }
-    });
-    
-    setCollapsedLines(newCollapsedLines);
-    setHiddenLines(newHiddenLines);
-    
-    console.log("全部折叠完成，折叠了", Object.keys(newCollapsedLines).length, "个范围");
-  };
-
-  // 全部展开函数
-  const handleExpandAll = () => {
-    console.log("执行全部展开操作");
-    setCollapsedLines({});
-    setHiddenLines({});
-    console.log("全部展开完成");
-  };
-
   // 在代码中添加这个辅助函数，用于通过行分析计算数组元素
   function countArrayElementsFromLines(lines: string[], startLine: number, endLine: number): number {
     let elementsCount = 0;
@@ -891,41 +911,50 @@ export default function Home() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <button
-                  onClick={handleCollapseAll}
-                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                  onClick={toggleCollapseAll}
+                  className="text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded flex items-center transition-colors duration-200"
                   disabled={!isValid || !outputJson}
                 >
-                  全部折叠
+                  <span>{Object.keys(collapsedLines).length > 0 ? '全部展开' : '全部折叠'}</span>
                 </button>
                 <button
-                  onClick={handleExpandAll}
-                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
-                  disabled={!isValid || !outputJson}
+                  onClick={toggleSoftWrap}
+                  className={`text-xs px-3 py-1.5 rounded transition-colors duration-200 flex items-center ${
+                    softWrap 
+                      ? 'bg-teal-500 hover:bg-teal-600 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
+                  }`}
                 >
-                  全部展开
+                  <span>{softWrap ? '取消自动换行' : '自动换行'}</span>
                 </button>
-                <label className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-3 w-3 text-blue-500 rounded mr-1"
-                    checked={softWrap}
-                    onChange={(e) => setSoftWrap(e.target.checked)}
-                  />
-                  自动换行
-                </label>
                 <button
                   onClick={() => {
                     if (outputJson) {
-                      navigator.clipboard.writeText(outputJson);
+                      // 点击时激活按钮状态
+                      setIsButtonActive(true);
+                      
+                      // 复制文本
+                      navigator.clipboard.writeText(outputJson)
+                        .then(() => {
+                          // 成功后短暂延迟恢复状态
+                          setTimeout(() => setIsButtonActive(false), 200);
+                        })
+                        .catch(err => {
+                          console.error('复制失败:', err);
+                          // 失败后也恢复状态
+                          setTimeout(() => setIsButtonActive(false), 200);
+                        });
                     }
                   }}
                   disabled={!outputJson}
-                  className={`text-xs ${
-                    outputJson 
-                      ? 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' 
-                      : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                  className={`text-xs px-3 py-1.5 rounded transition-all duration-200 flex items-center ${
+                    !outputJson 
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                      : isButtonActive
+                        ? 'bg-blue-700 text-white transform scale-95' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
                   复制
