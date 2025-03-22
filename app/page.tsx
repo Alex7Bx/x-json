@@ -277,39 +277,82 @@ export default function Home() {
           // 计算范围内的项数
           let itemCount = 0;
           
-          // 简化的计数逻辑
+          // 改进的计数逻辑，只计算一级属性或元素
           if (type === 'object') {
-            // 对象内的键数量
+            // 对象内的一级键数量
             let keysCount = 0;
+            let objLevel = 0; // 跟踪对象的嵌套层级
+            
             for (let j = i + 1; j < endLine; j++) {
               const line = lines[j].trim();
-              if (line.includes('"') && line.includes(':')) {
+              
+              // 如果是对象的结束括号，则跳过
+              if (line === '}') break;
+              
+              // 先计算行开始时的嵌套层级
+              let startLevel = objLevel;
+              
+              // 更新本行结束后的嵌套层级
+              for (let k = 0; k < line.length; k++) {
+                const char = line[k];
+                if (char === '{' || char === '[') objLevel++;
+                else if (char === '}' || char === ']') objLevel--;
+              }
+              
+              // 只计算一级属性（行开始时嵌套层级为0，并且包含键值对标记）
+              if (startLevel === 0 && line.includes('"') && line.includes(':')) {
                 keysCount++;
               }
             }
             itemCount = keysCount;
           } else {
-            // 数组内的元素数量
+            // 数组内的一级元素数量 - 改进版
             let elementsCount = 0;
-            let level = 0;
-            for (let j = i + 1; j < endLine; j++) {
-              const line = lines[j].trim();
-              if (level === 0 && line !== '' && !line.startsWith(']')) {
-                if (!line.endsWith(',')) {
-                  // 如果这是最后一个元素
-                  elementsCount++;
-                } else if (line.endsWith(',')) {
-                  elementsCount++;
+            
+            // 使用更简单但更可靠的方法来计数数组元素
+            // 直接从JSON结构中获取对应的数组并计算长度
+            try {
+              // 获取当前数组路径
+              const arrayPath = [];
+              let depth = 0;
+              
+              // 获取这个数组的完整路径
+              for (let j = 0; j < i; j++) {
+                const line = lines[j].trim();
+                
+                // 如果这一行包含键名且下一行就是当前数组，则记录这个键
+                if (j + 1 === i && line.includes(':')) {
+                  const keyMatch = line.match(/"([^"]+)":/);
+                  if (keyMatch) {
+                    arrayPath.push(keyMatch[1]);
+                  }
                 }
               }
               
-              // 跟踪嵌套层级
-              for (let k = 0; k < line.length; k++) {
-                const char = line[k];
-                if (char === '{' || char === '[') level++;
-                else if (char === '}' || char === ']') level--;
+              // 在解析后的JSON中查找这个数组
+              let currentObj = parsedJson;
+              for (const key of arrayPath) {
+                if (currentObj && typeof currentObj === 'object' && key in currentObj) {
+                  currentObj = currentObj[key];
+                } else {
+                  // 路径不存在，使用手动计数
+                  currentObj = null;
+                  break;
+                }
               }
+              
+              // 如果成功找到数组，直接获取长度
+              if (Array.isArray(currentObj)) {
+                elementsCount = currentObj.length;
+              } else {
+                // 回退到基于行的计数方法
+                elementsCount = countArrayElementsFromLines(lines, i, endLine);
+              }
+            } catch (err) {
+              // 如果有任何错误，回退到基于行的计数方法
+              elementsCount = countArrayElementsFromLines(lines, i, endLine);
             }
+            
             itemCount = elementsCount;
           }
           
@@ -738,6 +781,62 @@ export default function Home() {
     setHiddenLines({});
     console.log("全部展开完成");
   };
+
+  // 在代码中添加这个辅助函数，用于通过行分析计算数组元素
+  function countArrayElementsFromLines(lines: string[], startLine: number, endLine: number): number {
+    let elementsCount = 0;
+    let arrLevel = 0;
+    let insideElement = false;
+    
+    for (let j = startLine + 1; j < endLine; j++) {
+      const line = lines[j].trim();
+      if (line === '') continue;
+      if (line === ']') break;
+      
+      // 计算当前行的嵌套层级变化
+      let levelChange = 0;
+      for (let k = 0; k < line.length; k++) {
+        const char = line[k];
+        if (char === '{' || char === '[') levelChange++;
+        else if (char === '}' || char === ']') levelChange--;
+      }
+      
+      // 处理元素开始
+      if (arrLevel === 0 && !insideElement) {
+        // 找到新元素的开始
+        elementsCount++;
+        insideElement = true;
+        
+        // 如果这行既开始又结束了一个元素，并且以逗号结束
+        if (levelChange === 0 && line.endsWith(',')) {
+          insideElement = false;
+        }
+        // 如果这行开始了一个复杂元素（对象或数组）
+        else if (levelChange > 0) {
+          arrLevel += levelChange;
+        }
+      }
+      // 处理已经在元素内的情况
+      else if (insideElement) {
+        // 更新嵌套层级
+        arrLevel += levelChange;
+        
+        // 如果回到了顶层并且行尾有逗号，表示元素结束
+        if (arrLevel === 0 && line.endsWith(',')) {
+          insideElement = false;
+        }
+        // 如果回到了顶层但没有逗号，可能是最后一个元素
+        else if (arrLevel === 0) {
+          // 检查是否是数组的最后一个元素
+          if (j + 1 < endLine && lines[j + 1].trim() === ']') {
+            insideElement = false;
+          }
+        }
+      }
+    }
+    
+    return elementsCount;
+  }
 
   return (
     <div className="min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900 overscroll-contain">
