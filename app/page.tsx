@@ -126,7 +126,7 @@ export default function Home() {
     };
   }, [softWrap]);
 
-  // 完全重写的折叠范围查找算法
+  // 修改元素计数逻辑
   const findFoldableRanges = (jsonStr: string) => {
     const lines = jsonStr.split('\n');
     const ranges: {start: number, end: number, type: string, count?: number}[] = [];
@@ -211,41 +211,157 @@ export default function Home() {
             type = 'array';
           }
           
-          // 计算范围内的项数
-          let count = 0;
-          // 设置初始深度
-          let depth = 0;
+          // 计算范围内的项数 - 简化版本
+          let itemCount = 0;
           
-          // 计算实际的元素数量
-          for (let j = i + 1; j < endLine; j++) {
-            const currentLine = lineContents[j];
-            if (!currentLine) continue;
-            
-            // 跟踪嵌套深度
-            if (currentLine === '{' || currentLine === '[' || 
-                currentLine.endsWith('{') || currentLine.endsWith('[')) {
-              depth++;
-              continue;
-            }
-            
-            if (currentLine === '}' || currentLine === ']' || 
-                currentLine === '},' || currentLine === '],') {
-              depth--;
-              continue;
-            }
-            
-            // 只计算顶层元素（深度为0）
-            if (depth === 0) {
-              if (type === 'object' && currentLine.includes('"') && currentLine.includes(':')) {
-                // 对象属性（键值对）
-                count++;
-              } else if (type === 'array') {
-                // 数组元素
-                if (!currentLine.startsWith('"')) {
-                  count++;
+          // 创建一个包含此范围所有行的字符串
+          const rangeText = lines.slice(i, endLine + 1).join('\n');
+          
+          try {
+            // 尝试解析这个范围的JSON片段
+            // 先提取要解析的实际JSON
+            let jsonToCount = rangeText;
+            // 如果行以键名开始，我们需要添加包装使它成为有效JSON
+            if (line.includes('"') && line.includes(':')) {
+              // 找到冒号位置，只取冒号后面的部分
+              const colonIndex = line.indexOf(':');
+              if (colonIndex !== -1) {
+                const afterColon = line.substring(colonIndex + 1).trim();
+                // 如果冒号后是{或[，则只解析该部分
+                if (afterColon === '{' || afterColon === '[') {
+                  jsonToCount = lines.slice(i, endLine + 1).join('\n');
                 }
               }
             }
+            
+            // 格式检查和调整
+            if (type === 'object') {
+              // 确保要解析的文本是一个有效的JSON对象
+              if (!jsonToCount.startsWith('{')) {
+                jsonToCount = '{' + jsonToCount.substring(jsonToCount.indexOf('{') + 1);
+              }
+              
+              if (jsonToCount.trim() === '{' || jsonToCount.trim() === '{}') {
+                itemCount = 0;
+              } else {
+                // 更健壮的计数方法 - 对象属性数量
+                // 计算顶层键值对数量
+                let keysCount = 0;
+                let bracketDepth = 0;
+                let inString = false;
+                let escape = false;
+                
+                // 从第一行之后开始，到最后一行之前结束
+                for (let j = i + 1; j < endLine; j++) {
+                  const currentLine = lineContents[j];
+                  if (!currentLine) continue;
+                  
+                  // 只计算顶层的键
+                  if (bracketDepth === 0 && currentLine.includes('"') && currentLine.includes(':')) {
+                    keysCount++;
+                  }
+                  
+                  // 跟踪大括号深度
+                  for (let k = 0; k < currentLine.length; k++) {
+                    const char = currentLine[k];
+                    
+                    if (escape) {
+                      escape = false;
+                      continue;
+                    }
+                    
+                    if (char === '\\') {
+                      escape = true;
+                      continue;
+                    }
+                    
+                    if (char === '"' && !escape) {
+                      inString = !inString;
+                      continue;
+                    }
+                    
+                    if (!inString) {
+                      if (char === '{' || char === '[') {
+                        bracketDepth++;
+                      } else if (char === '}' || char === ']') {
+                        bracketDepth--;
+                      }
+                    }
+                  }
+                }
+                
+                itemCount = keysCount;
+              }
+            } else if (type === 'array') {
+              // 确保要解析的文本是一个有效的JSON数组
+              if (!jsonToCount.startsWith('[')) {
+                jsonToCount = '[' + jsonToCount.substring(jsonToCount.indexOf('[') + 1);
+              }
+              
+              if (jsonToCount.trim() === '[' || jsonToCount.trim() === '[]') {
+                itemCount = 0;
+              } else {
+                // 计算数组元素数量
+                // 对于数组，我们计算逗号+1来得到元素数
+                let elementsCount = 0;
+                let bracketDepth = 0;
+                let inString = false;
+                let escape = false;
+                
+                // 遍历每行
+                for (let j = i + 1; j < endLine; j++) {
+                  const currentLine = lineContents[j];
+                  if (!currentLine) continue;
+                  
+                  // 如果是顶层的元素行（不是开始或结束括号）
+                  if (bracketDepth === 0 && 
+                      !currentLine.startsWith('[') && !currentLine.startsWith(']') &&
+                      !currentLine.startsWith('{') && !currentLine.startsWith('}')) {
+                    elementsCount++;
+                  }
+                  
+                  // 如果是新的对象或数组开始且在顶层
+                  if (bracketDepth === 0 && 
+                      (currentLine === '{' || currentLine === '[' || 
+                       currentLine.startsWith('{') || currentLine.startsWith('['))) {
+                    elementsCount++;
+                  }
+                  
+                  // 跟踪括号深度
+                  for (let k = 0; k < currentLine.length; k++) {
+                    const char = currentLine[k];
+                    
+                    if (escape) {
+                      escape = false;
+                      continue;
+                    }
+                    
+                    if (char === '\\') {
+                      escape = true;
+                      continue;
+                    }
+                    
+                    if (char === '"' && !escape) {
+                      inString = !inString;
+                      continue;
+                    }
+                    
+                    if (!inString) {
+                      if (char === '{' || char === '[') {
+                        bracketDepth++;
+                      } else if (char === '}' || char === ']') {
+                        bracketDepth--;
+                      }
+                    }
+                  }
+                }
+                
+                itemCount = elementsCount;
+              }
+            }
+          } catch (err) {
+            console.warn('计算元素数量时出错:', err);
+            itemCount = Math.max(0, endLine - i - 1); // 回退方案：简单地计算行数减2作为元素数
           }
           
           // 添加到可折叠范围列表
@@ -253,10 +369,10 @@ export default function Home() {
             start: i,
             end: endLine,
             type: type,
-            count: count
+            count: itemCount
           });
           
-          console.log(`添加可折叠范围: 第${i+1}行到第${endLine+1}行，类型:${type}，包含${count}项`);
+          console.log(`添加可折叠范围: 第${i+1}行到第${endLine+1}行，类型:${type}，包含${itemCount}项`);
         }
       }
     }
@@ -474,8 +590,8 @@ export default function Home() {
                 {isCollapsedStart && range && (
                   <span className="json-ellipsis">
                     ... {range.type === 'object' 
-                      ? `${range.count || countVisibleProperties(range.start, range.end)} 个属性` 
-                      : `${range.count || countVisibleProperties(range.start, range.end)} 个元素`}
+                      ? `${range.count} 个属性` 
+                      : `${range.count} 个元素`}
                   </span>
                 )}
               </div>
@@ -484,27 +600,6 @@ export default function Home() {
         })}
       </div>
     );
-  };
-
-  // 添加计算可见属性或元素的函数
-  const countVisibleProperties = (start: number, end: number) => {
-    // 计算在start和end之间的非括号行数
-    let count = 0;
-    const lines = outputJson.split('\n');
-    
-    for (let i = start + 1; i < end; i++) {
-      const line = lines[i].trim();
-      // 只计算非空行且不是括号的行
-      if (line && 
-          !line.startsWith('{') && 
-          !line.startsWith('[') && 
-          !line.startsWith('}') && 
-          !line.startsWith(']')) {
-        count++;
-      }
-    }
-    
-    return count;
   };
 
   // 添加一个示例JSON
