@@ -29,6 +29,9 @@ export default function Home() {
     
     // 设置样式
     styleEl.innerHTML = `
+      html, body {
+        overscroll-behavior: none;
+      }
       .syntax-highlighter pre {
         white-space: ${softWrap ? 'pre-wrap' : 'pre'} !important;
         word-break: ${softWrap ? 'break-all' : 'normal'} !important;
@@ -707,7 +710,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900 overscroll-contain">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
@@ -740,7 +743,7 @@ export default function Home() {
             </div>
             <div className="bg-white dark:bg-gray-800 p-4">
               <textarea
-                className="w-full h-[500px] p-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full h-[500px] p-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overscroll-contain"
                 value={inputJson}
                 onChange={(e) => setInputJson(e.target.value)}
                 placeholder='在此输入JSON，例如：{"name": "张三", "age": 25}'
@@ -818,9 +821,9 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <div className="h-[500px] overflow-auto p-2 bg-[#272822] border border-gray-300 dark:border-gray-700 rounded-md">
+                <div className="h-[500px] overflow-y-auto overscroll-contain p-2 bg-[#272822] border border-gray-300 dark:border-gray-700 rounded-md">
                   {outputJson ? (
-                    <div className="syntax-highlighter">
+                    <div className="syntax-highlighter h-auto">
                       {renderJSON()}
                     </div>
                   ) : (
