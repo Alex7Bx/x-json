@@ -17,10 +17,11 @@ export default function Home() {
   const [hiddenLines, setHiddenLines] = useState<Record<number, boolean>>({});
   const [bracketColors, setBracketColors] = useState<Record<number, string>>({});
   const [isButtonActive, setIsButtonActive] = useState(false);
+  const [isCompressed, setIsCompressed] = useState(false);
 
   useEffect(() => {
     parseJson();
-  }, [inputJson]);
+  }, [inputJson, isCompressed]);
 
   // 添加自定义样式到head
   useEffect(() => {
@@ -392,8 +393,11 @@ export default function Home() {
       // 先尝试解析JSON确保有效性
       const parsed = JSON.parse(inputJson);
       
-      // 格式化输出，这会对JSON进行统一的格式化处理
-      const formatted = JSON.stringify(parsed, null, 2);
+      // 根据压缩状态决定格式化方式
+      // 如果是压缩模式，不添加缩进和换行；否则使用2个空格缩进
+      const formatted = isCompressed 
+        ? JSON.stringify(parsed) 
+        : JSON.stringify(parsed, null, 2);
       
       console.log('JSON解析成功，开始查找可折叠范围');
       
@@ -484,6 +488,32 @@ export default function Home() {
     setSoftWrap(!softWrap);
   };
 
+  // 切换压缩/展开JSON
+  const toggleCompression = () => {
+    // 切换压缩状态
+    const newCompressedState = !isCompressed;
+    setIsCompressed(newCompressedState);
+    
+    // 如果当前有有效的JSON，需要重新格式化
+    if (parsedJson) {
+      const formatted = newCompressedState 
+        ? JSON.stringify(parsedJson) 
+        : JSON.stringify(parsedJson, null, 2);
+      
+      setOutputJson(formatted);
+      
+      // 重新计算可折叠范围（当切换到展开状态时）
+      if (!newCompressedState) {
+        findFoldableRanges(formatted);
+      } else {
+        // 压缩模式下清除折叠状态
+        setCollapsibleRanges([]);
+        setCollapsedLines({});
+        setHiddenLines({});
+      }
+    }
+  };
+
   // 切换折叠状态
   const toggleCollapse = (startLine: number, endLine: number, type: string) => {
     console.log(`切换折叠状态: 行 ${startLine+1}-${endLine+1}, 类型: ${type}`);
@@ -539,6 +569,18 @@ export default function Home() {
   const renderJSON = () => {
     if (!outputJson) return null;
     
+    // 如果是压缩模式且只有一行，直接渲染整行
+    if (isCompressed && !outputJson.includes('\n')) {
+      return (
+        <div className="json-line">
+          <div className="line-content" style={{ width: '100%', paddingLeft: 0 }}>
+            <span style={{ color: '#f8f8f2' }}>{outputJson}</span>
+          </div>
+        </div>
+      );
+    }
+    
+    // 标准多行渲染
     const lines = outputJson.split('\n');
     return (
       <div>
@@ -913,9 +955,20 @@ export default function Home() {
               </div>
               <div className="flex items-center space-x-3">
                 <button
+                  onClick={toggleCompression}
+                  className={`text-xs px-3 py-1.5 rounded transition-colors duration-200 flex items-center ${
+                    isCompressed 
+                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300' 
+                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  }`}
+                  disabled={!isValid || !outputJson}
+                >
+                  <span>{isCompressed ? '展开' : '压缩'}</span>
+                </button>
+                <button
                   onClick={toggleCollapseAll}
                   className="text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded flex items-center transition-colors duration-200"
-                  disabled={!isValid || !outputJson}
+                  disabled={!isValid || !outputJson || isCompressed}
                 >
                   <span>{Object.keys(collapsedLines).length > 0 ? '全部展开' : '全部折叠'}</span>
                 </button>
