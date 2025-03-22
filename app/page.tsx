@@ -588,7 +588,15 @@ export default function Home() {
               <div className="line-content">
                 {colorizedLine()}
                 {isCollapsedStart && range && (
-                  <span className="json-ellipsis">
+                  <span 
+                    className="json-ellipsis" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCollapse(range.start, range.end, range.type);
+                    }}
+                    title="点击展开"
+                    style={{ cursor: 'pointer' }}
+                  >
                     ... {range.type === 'object' 
                       ? `${range.count} 个属性` 
                       : `${range.count} 个元素`}
