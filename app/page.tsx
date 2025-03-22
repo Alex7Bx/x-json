@@ -73,18 +73,14 @@ export default function Home() {
         text-align: center;
         align-items: center;
         justify-content: center;
-        background-color: rgba(255, 255, 255, 0.15);
-        color: #f8f8f2;
-        border-radius: 4px;
+        color: rgba(117, 113, 94, 1);
         cursor: pointer;
         user-select: none;
-        font-size: 14px;
-        font-weight: bold;
-        margin-right: 0;
+        font-size: 12px;
         transition: all 0.2s ease;
       }
       .folding-icon:hover {
-        background-color: rgba(255, 255, 255, 0.3);
+        color: #f8f8f2;
       }
       .json-line {
         display: flex;
@@ -624,7 +620,7 @@ export default function Home() {
         "翻译"
       ],
       "char_limit": 500,
-      "description": "海螺AI是一个智能助手，可以回答各种问题。"
+      "description": "海螺AI是一个智能助手，可以回答各种问题。海螺AI是一个智能助手，可以回答各种问题海螺AI是一个智能助手，可以回答各种问题海螺AI是一个智能助手，可以回答各种问题"
     },
     "data": [
       {
