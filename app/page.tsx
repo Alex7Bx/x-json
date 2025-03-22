@@ -395,6 +395,26 @@ export default function Home() {
           delete newHiddenLines[i];
         }
         console.log(`展开了 ${type}, 行 ${startLine+1}-${endLine+1}`);
+        
+        // 找到所有直接属于该范围的子折叠项
+        const childRanges = collapsibleRanges.filter(range => 
+          range.start > startLine && range.end < endLine &&
+          // 确保它们是直接子级，而不是孙级或更深层级
+          !collapsibleRanges.some(otherRange => 
+            otherRange.start > startLine && otherRange.end < endLine &&
+            range.start > otherRange.start && range.end < otherRange.end
+          )
+        );
+        
+        // 对每个直接子折叠项，如果折叠标记为true，则重新隐藏其内容
+        childRanges.forEach(childRange => {
+          if (newState[childRange.start]) {
+            for (let i = childRange.start + 1; i < childRange.end; i++) {
+              newHiddenLines[i] = true;
+            }
+            console.log(`保持子折叠项 ${childRange.start+1}-${childRange.end+1} 的折叠状态`);
+          }
+        });
       } else {
         // 折叠，添加隐藏的行
         for (let i = startLine + 1; i < endLine; i++) {
@@ -684,12 +704,22 @@ export default function Home() {
     const newCollapsedLines: Record<number, boolean> = {};
     const newHiddenLines: Record<number, boolean> = {};
     
-    // 遍历所有可折叠范围，将它们全部折叠
+    // 标记所有可折叠范围为折叠状态
     collapsibleRanges.forEach(range => {
-      // 标记折叠起始行
       newCollapsedLines[range.start] = true;
-      
-      // 隐藏范围内的行
+    });
+    
+    // 确定哪些行应该被隐藏（仅在顶层范围内的行）
+    // 找出顶层范围（不包含在其他范围内的范围）
+    const topLevelRanges = collapsibleRanges.filter(range => {
+      // 检查这个范围是否是顶层范围（不在其他范围内）
+      return !collapsibleRanges.some(otherRange => 
+        otherRange.start < range.start && otherRange.end > range.end
+      );
+    });
+    
+    // 只隐藏顶层范围内的行
+    topLevelRanges.forEach(range => {
       for (let i = range.start + 1; i < range.end; i++) {
         newHiddenLines[i] = true;
       }
