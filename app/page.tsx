@@ -987,12 +987,34 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-4">
-              <textarea
-                className="w-full h-[500px] p-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overscroll-contain"
-                value={inputJson}
-                onChange={(e) => setInputJson(e.target.value)}
-                placeholder='在此输入JSON，例如：{"name": "张三", "age": 25}'
-              />
+              <div 
+                className="relative"
+                onMouseEnter={(e) => {
+                  // 鼠标进入时自动获取焦点
+                  e.currentTarget.focus();
+                }}
+                onKeyDown={(e) => {
+                  // 检查是否是 Cmd+A (Mac) 或 Ctrl+A (Windows/Linux)
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+                    // 阻止默认的全选行为
+                    e.preventDefault();
+                    // 获取输入框
+                    const textarea = e.currentTarget.querySelector('textarea');
+                    if (textarea) {
+                      // 全选输入框内容
+                      textarea.select();
+                    }
+                  }
+                }}
+                tabIndex={0}
+              >
+                <textarea
+                  className="w-full h-[500px] p-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overscroll-contain"
+                  value={inputJson}
+                  onChange={(e) => setInputJson(e.target.value)}
+                  placeholder='在此输入JSON，例如：{"name": "张三", "age": 25}'
+                />
+              </div>
             </div>
           </div>
 
@@ -1086,7 +1108,30 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <div className="h-[500px] overflow-y-auto overscroll-contain p-2 bg-[#272822] border border-gray-300 dark:border-gray-700 rounded-md">
+                <div className="h-[500px] overflow-y-auto overscroll-contain p-2 bg-[#272822] border border-gray-300 dark:border-gray-700 rounded-md"
+                     onMouseEnter={(e) => {
+                       // 鼠标进入时自动获取焦点
+                       e.currentTarget.focus();
+                     }}
+                     onKeyDown={(e) => {
+                       // 检查是否是 Cmd+A (Mac) 或 Ctrl+A (Windows/Linux)
+                       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+                         // 阻止默认的全选行为
+                         e.preventDefault();
+                         // 获取预览窗口内的内容
+                         const previewContent = e.currentTarget.querySelector('.syntax-highlighter');
+                         if (previewContent) {
+                           // 创建一个范围
+                           const range = document.createRange();
+                           range.selectNodeContents(previewContent);
+                           // 清除现有的选择
+                           window.getSelection()?.removeAllRanges();
+                           // 应用新的选择
+                           window.getSelection()?.addRange(range);
+                         }
+                       }
+                     }}
+                     tabIndex={0}>
                   {outputJson ? (
                     <div className="syntax-highlighter h-auto">
                       {renderJSON()}
