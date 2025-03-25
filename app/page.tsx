@@ -795,7 +795,7 @@ export default function Home() {
     },
     "data": [
       {
-        "user_msg": "为什么一周的第一天是星期天？",
+        "user_msg": "为什么一周的第一天是星期天？？",
         "timestamp": "2023-04-01T12:34:56Z"
       },
       {
