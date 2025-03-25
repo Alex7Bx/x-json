@@ -790,7 +790,7 @@ export default function Home() {
         "文章分析",
         "翻译"
       ],
-      "char_limit": 500,
+      "char_limit": 5001,
       "description": "Your AI是一个智能助手，可以回答各种问题。YourAI是一个智能助手，可以回答各种问题YourAI是一个智能助手，可以回答各种问题YourAI是一个智能助手，可以回答各种问题"
     },
     "data": [
