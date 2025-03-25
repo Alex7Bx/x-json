@@ -782,7 +782,7 @@ export default function Home() {
     "text": "为什么一周的第一天是星期天？",
     "quest_code": "w01",
     "system_data": {
-      "name": "海螺AI",
+      "name": "Your AI",
       "version": "2.0",
       "capabilities": [
         "写作文",
@@ -791,7 +791,7 @@ export default function Home() {
         "翻译"
       ],
       "char_limit": 500,
-      "description": "海螺AI是一个智能助手，可以回答各种问题。海螺AI是一个智能助手，可以回答各种问题海螺AI是一个智能助手，可以回答各种问题海螺AI是一个智能助手，可以回答各种问题"
+      "description": "Your AI是一个智能助手，可以回答各种问题。YourAI是一个智能助手，可以回答各种问题YourAI是一个智能助手，可以回答各种问题YourAI是一个智能助手，可以回答各种问题"
     },
     "data": [
       {
