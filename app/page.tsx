@@ -1014,37 +1014,37 @@ export default function Home() {
           <div className="rounded-lg overflow-hidden shadow-sm">
             <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h2 className="text-sm font-medium text-gray-900 dark:text-white">输入JSON</h2>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <button
                   onClick={handleExtractJson}
-                  className="text-xs bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded"
+                  className="text-xs bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded transition-colors duration-200 flex items-center"
                   title="从文本中提取有效的JSON对象或数组"
                 >
                   ⭐️提取
                 </button>
                 <button
                   onClick={handleEscapeJson}
-                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded"
+                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded transition-colors duration-200 flex items-center"
                   title="将JSON文本中的特殊字符转义"
                 >
                   转义
                 </button>
                 <button
                   onClick={handleUnescapeJson}
-                  className="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded"
+                  className="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded transition-colors duration-200 flex items-center"
                   title="将已转义的JSON文本恢复为原始文本"
                 >
                   反转义
                 </button>
                 <button
                   onClick={handleExampleLoad}
-                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
+                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded transition-colors duration-200 flex items-center"
                 >
                   加载示例
                 </button>
                 <button
                   onClick={() => setInputJson('')}
-                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded transition-colors duration-200 flex items-center"
                 >
                   清空
                 </button>
