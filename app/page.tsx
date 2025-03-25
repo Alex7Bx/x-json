@@ -940,6 +940,63 @@ export default function Home() {
     }
   };
 
+  // JSON提取处理函数
+  const handleExtractJson = () => {
+    if (!inputJson) return;
+    
+    try {
+      // 使用正则表达式匹配JSON对象或数组
+      const jsonRegex = /\{[\s\S]*\}|\[[\s\S]*\]/g;
+      const matches = inputJson.match(jsonRegex);
+      
+      if (!matches) {
+        setError('未找到有效的JSON对象或数组');
+        return;
+      }
+      
+      // 遍历所有匹配项，找到第一个有效的JSON
+      for (const match of matches) {
+        try {
+          // 尝试直接解析JSON
+          JSON.parse(match);
+          // 如果解析成功，更新输入框
+          setInputJson(match);
+          setError('');
+          return;
+        } catch (e) {
+          // 如果直接解析失败，尝试反转义后再解析
+          try {
+            // 对匹配的内容进行反转义
+            const unescaped = match.replace(/\\"/g, '"')
+                                 .replace(/\\\\/g, '\\')
+                                 .replace(/\\n/g, '\n')
+                                 .replace(/\\r/g, '\r')
+                                 .replace(/\\t/g, '\t')
+                                 .replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => {
+                                   return String.fromCharCode(parseInt(code, 16));
+                                 });
+            
+            // 尝试解析反转义后的内容
+            JSON.parse(unescaped);
+            // 如果解析成功，更新输入框
+            setInputJson(unescaped);
+            setError('');
+            return;
+          } catch (e2) {
+            // 如果反转义后解析也失败，继续尝试下一个匹配项
+            continue;
+          }
+        }
+      }
+      
+      // 如果所有匹配项都无效
+      setError('未找到有效的JSON对象或数组');
+    } catch (err) {
+      console.error('JSON提取失败:', err);
+      setError('JSON提取失败');
+    }
+  };
+
   return (
     <div className="min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900 overscroll-contain">
       <div className="max-w-7xl mx-auto">
@@ -958,6 +1015,13 @@ export default function Home() {
             <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h2 className="text-sm font-medium text-gray-900 dark:text-white">输入JSON</h2>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleExtractJson}
+                  className="text-xs bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded"
+                  title="从文本中提取有效的JSON对象或数组"
+                >
+                  ⭐️提取
+                </button>
                 <button
                   onClick={handleEscapeJson}
                   className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded"
