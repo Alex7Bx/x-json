@@ -54,7 +54,7 @@ export default function Home() {
         padding-right: 12px;
         user-select: none;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: flex-end;
         white-space: nowrap;
         overflow: hidden;
@@ -66,11 +66,10 @@ export default function Home() {
       }
       .folding-controls {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
         min-width: 24px;
         margin-right: 2px;
-        padding-top: 2px;
       }
       .folding-icon {
         display: inline-flex;
@@ -78,7 +77,7 @@ export default function Home() {
         height: 18px;
         line-height: 18px;
         text-align: center;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
         color: rgba(117, 113, 94, 1);
         cursor: pointer;
@@ -92,7 +91,6 @@ export default function Home() {
       .json-line {
         display: flex;
         font-family: monospace;
-        align-items: flex-start;
       }
       .collapsed-line {
         display: none;
@@ -109,7 +107,6 @@ export default function Home() {
         padding-left: 12px;
         border-left: 1px solid #444;
         width: calc(100% - 60px);
-        align-self: flex-start;
       }
     `;
     
